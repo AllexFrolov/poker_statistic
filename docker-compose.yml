@@ -1,0 +1,33 @@
+version: '3.1'
+
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./data/pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  flask-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      FLASK_APP: ${FLASK_APP}
+      FLASK_RUN_HOST: ${FLASK_RUN_HOST}
+      FLASK_RUN_PORT: ${FLASK_RUN_PORT}
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+
+volumes:
+  pg_data:
