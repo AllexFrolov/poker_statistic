@@ -16,29 +16,56 @@ DB_PARAMS = {
 }
 
 def wait_for_it(db_params: dict) -> Statistic:
+    """wait connect to db"""
     exeption = None
-    for _ in round(10):
+    for _ in range(10):
         try:
-            return Statistic(db_params)
-        except ConnectionError as e:
-            time.sleep(5)
+            stats = Statistic(db_params)
+            return stats
+        except Exception as e:
+            time.sleep(2)
             exeption = e
 
     raise ConnectionError(exeption)
 
-app = Flask(__name__)
-api = Api(app, title='Иди нахуй', description='Иди нахуй API')
-ns = api.namespace('parsing', description='parsing poker logs')
 
-todo = api.model('/parse_logs/post response', {
-    'status': fields.Integer(default=200, description='Статус'),
+app = Flask(__name__)
+api = Api(
+    app,
+    title='Иди нахуй',
+    description='Иди нахуй API',
+    )
+hc = api.namespace('healthcheck')
+pl = api.namespace('parsing', description='parsing poker logs')
+
+pl_resp = api.model(
+    '/parse_logs/post response',
+    {'status': fields.String(description='Статус')})
+
+pl_ext = api.model(
+    '/parse_logs/post expect', 
+    {'log': fields.String(required=True, description='Логи раздачи'),})
+
+healthcheck = api.model('/healthcheck', {
+    'status': fields.Boolean(readonly=True)
 })
 
+@hc.route('/')
+class HealthCheck(Resource):
+    @pl.marshal_with(healthcheck)
+    def get(self):
+        if isinstance(STATS, Statistic):
+            return {'status': True}
+        return {'status': False}
 
-@ns.route('/parse_logs/<log>')
-@ns.doc(params={'log': 'Лог ондой раздачи Сука'})
+@pl.route('/parse_logs')
 class ParseLogs(Resource):
-    @ns.doc('post hand logs')
-    @ns.marshal_with(todo)
-    def post(self, log):
-        return 200
+    @pl.doc('post hand logs')
+    @pl.expect(pl_ext)
+    @pl.marshal_with(pl_resp, code=201)
+    def post(self):
+        log = api.payload['log']
+        STATS.parse_log(log)
+        return {'status': 'success'}, 201
+
+STATS = wait_for_it(DB_PARAMS)
