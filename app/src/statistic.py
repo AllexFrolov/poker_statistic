@@ -246,19 +246,20 @@ class Statistic:
 
         return data
 
-    def parse_log(self, logs: str):
+    def parse_log(self, log: str):
         """
         Parse and store information from the entire game log.
 
         Args:
             logs (str): The entire game log text.
         """
-        stages = self.split_and_create_dict(logs)
+        stages = self.split_and_create_dict(log)
         hand_id = self.parse_hands(stages['preflop'])['hand_id']
         self.parse_player_hand(stages['preflop'], hand_id)
         self.parse_player_start_hand(stages['preflop'], hand_id)
         for stage_name, stage_logs in stages.items():
             self.parse_actions(stage_logs, self.stages[stage_name], hand_id)
+        self.commit()
 
 
     def commit(self):
