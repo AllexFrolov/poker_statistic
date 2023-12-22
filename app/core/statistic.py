@@ -309,9 +309,9 @@ class Statistic:
     def get_player_stats(self, pl_name: str) -> dict:
         player_id = self.get_player_id(pl_name=pl_name)
         pl_stats = self.scripts_paths.joinpath('get_player_stats.sql').read_text()
-        pl_stats = pl_stats.format(player_id)
-        self.cursor.execute(pl_stats)        
+        pl_stats = pl_stats % (player_id)
+        self.cursor.execute(pl_stats)
         result = self.cursor.fetchone()
         if result:
-            return result
+            return dict(zip([desc[0] for desc in self.cursor.description], result))
         return {}
