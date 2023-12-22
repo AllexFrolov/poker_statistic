@@ -30,6 +30,12 @@ class Statistic:
         self.connection = psycopg2.connect(**db_params)
         self.cursor = self.connection.cursor()
         self.create_tables()
+        self.reset()
+
+    def reset(self):
+        """
+            reset dictionaries
+        """
         self.positions = self.get_table_dict('POSITIONS')
         self.actions = self.get_table_dict('ACTIONS')
         self.card_ranks = self.get_table_dict('CARD_RANKS')
@@ -176,28 +182,28 @@ class Statistic:
 
         return data
 
-    def get_player_id(self, player: str) -> int:
+    def get_player_id(self, pl_name: str) -> int:
         """
         Retrieve or create a player ID.
 
         Args:
-            player (str): The name of the player.
+            pl_name (str): The name of the player.
 
         Returns:
             int: The player ID.
         """
-        player_id = self.players.get(player)
+        player_id = self.players.get(pl_name)
         if player_id:
             return player_id
 
-        self.cursor.execute("SELECT player_id FROM players WHERE player = %s", (player,))
+        self.cursor.execute("SELECT player_id FROM players WHERE player = %s", (pl_name,))
         result = self.cursor.fetchone()
         if result:
             player_id = result[0]
         else:
-            self.cursor.execute("INSERT INTO players (player) VALUES (%s) RETURNING player_id", (player,))
+            self.cursor.execute("INSERT INTO players (player) VALUES (%s) RETURNING player_id", (pl_name,))
             player_id = self.cursor.fetchone()[0]
-        self.players[player] = player_id
+        self.players[pl_name] = player_id
         return player_id
 
     @staticmethod
@@ -299,3 +305,13 @@ class Statistic:
     def close(self):
         """Close the database connection."""
         self.connection.close()
+
+    def get_player_stats(self, pl_name: str) -> dict:
+        player_id = self.get_player_id(pl_name=pl_name)
+        pl_stats = self.scripts_paths.joinpath('get_player_stats.sql').read_text()
+        pl_stats = pl_stats.format(player_id)
+        self.cursor.execute(pl_stats)        
+        result = self.cursor.fetchone()
+        if result:
+            return result
+        return {}
