@@ -1,31 +1,31 @@
 -- Словари
 CREATE TABLE IF NOT EXISTS card_ranks
 (
- rank_id  SERIAL PRIMARY KEY,
+ rank_id  INT PRIMARY KEY,
  "rank"    char(1) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS card_suits
 (
- suit_id  SERIAL PRIMARY KEY,
+ suit_id  INT PRIMARY KEY,
  suit    char(1) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS stages
 (
- stage_id  SERIAL PRIMARY KEY,
+ stage_id  INT PRIMARY KEY,
  stage    char(10) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS actions
 (
- action_id  SERIAL PRIMARY KEY,
+ action_id  INT PRIMARY KEY,
  "action"    char(15) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS positions
 (
- position_id SERIAL PRIMARY KEY,
+ position_id INT PRIMARY KEY,
  position    char(3) NOT NULL
 );
 
@@ -86,49 +86,54 @@ CREATE TABLE IF NOT EXISTS hand_stage_cards
 
 -- Заполнение словарей
 
-INSERT INTO card_ranks (rank) VALUES
-   ('2'),
-   ('3'),
-   ('4'),
-   ('5'),
-   ('6'),
-   ('7'),
-   ('8'),
-   ('9'),
-   ('T'),
-   ('J'),
-   ('Q'),
-   ('K'),
-   ('A');
+INSERT INTO card_ranks (rank_id, rank) VALUES
+   (1, '2'),
+   (2, '3'),
+   (3, '4'),
+   (4, '5'),
+   (5, '6'),
+   (6, '7'),
+   (7, '8'),
+   (8, '9'),
+   (9, 'T'),
+   (10, 'J'),
+   (11, 'Q'),
+   (12, 'K'),
+   (13, 'A')
+ON CONFLICT (rank_id) DO NOTHING;
 
-INSERT INTO card_suits (suit) VALUES
-   ('c'),
-   ('d'),
-   ('h'),
-   ('s');
+INSERT INTO card_suits (suit_id, suit) VALUES
+   (1, 'c'),
+   (2, 'd'),
+   (3, 'h'),
+   (4, 's')
+ON CONFLICT (suit_id) DO NOTHING;
 
-INSERT INTO stages (stage) VALUES
-   ('preflop'),
-   ('flop'),
-   ('turn'),
-   ('river'),
-   ('showdown');
+INSERT INTO stages (stage_id, stage) VALUES
+   (1, 'preflop'),
+   (2, 'flop'),
+   (3, 'turn'),
+   (4, 'river'),
+   (5, 'showdown')
+ON CONFLICT (stage_id) DO NOTHING;
 
-INSERT INTO actions ("action") VALUES
-   ('small blind'),
-   ('big blind'),
-   ('folds'),
-   ('checks'),
-   ('calls'),
-   ('bets'),
-   ('raises'),
-   ('returned'),
-   ('collected');
+INSERT INTO actions (action_id, "action") VALUES
+   (1, 'small blind'),
+   (2, 'big blind'),
+   (3, 'folds'),
+   (4, 'checks'),
+   (5, 'calls'),
+   (6, 'bets'),
+   (7, 'raises'),
+   (8, 'returned'),
+   (9, 'collected')
+ON CONFLICT (action_id) DO NOTHING;
 
-INSERT INTO positions ("position") VALUES
-   ('SB'),
-   ('BB'),
-   ('UTG'),
-   ('MP'),
-   ('CO'),
-   ('BTN');
+INSERT INTO positions (position_id, "position") VALUES
+   (1, 'SB'),
+   (2, 'BB'),
+   (3, 'UTG'),
+   (4, 'MP'),
+   (5, 'CO'),
+   (6, 'BTN')
+ON CONFLICT (position_id) DO NOTHING;

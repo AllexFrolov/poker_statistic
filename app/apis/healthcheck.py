@@ -1,9 +1,11 @@
 from core import STATS, Statistic
 from flask_restx import Namespace, Resource, fields
 
-api = Namespace('healthcheck')
+ROUTE = 'healthcheck'
 
-healthcheck = api.model('/healthcheck', {
+api = Namespace(ROUTE)
+
+healthcheck = api.model(f'/{ROUTE}', {
     'status': fields.Boolean(readonly=True)
 })
 
