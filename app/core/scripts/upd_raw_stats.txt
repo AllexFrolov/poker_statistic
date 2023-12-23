@@ -1,0 +1,5 @@
+INSERT INTO player_raw_stats
+SELECT * 
+FROM calculate_statistics((SELECT ARRAY(SELECT * FROM hand_steps WHERE hand_id = %s)))
+ON CONFLICT (hand_id, player_id) DO NOTHING;
+

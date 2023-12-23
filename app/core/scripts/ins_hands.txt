@@ -1,0 +1,1 @@
+INSERT INTO hands (hand_id, table_name, sb, bb) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING

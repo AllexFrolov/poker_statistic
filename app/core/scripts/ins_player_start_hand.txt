@@ -1,0 +1,1 @@
+INSERT INTO player_start_hand (player_id, hand_id, cards) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING

@@ -7,7 +7,13 @@ api = Namespace(ROUTE, description='parsing poker logs')
 
 sl_ext = api.model(
     f'/{ROUTE}/send_log/expect', 
-    {'log': fields.String(required=True, description='Hand logs'),})
+    {'log': fields.String(required=True, description='Hand logs'),
+     'update_stats': fields.Boolean(
+         default=False,
+         required=False,
+         description='Update stats after parsing hand')
+         }
+         )
 
 ps_ext = api.model(
     f'/{ROUTE}/player_stats/expect', 
@@ -37,8 +43,7 @@ class SendLogs(Resource):
     @api.expect(sl_ext)
     @api.response(201, description='Success')
     def post(self):
-        log = api.payload['log']
-        STATS.parse_log(log)
+        STATS.parse_log(**api.payload)
         return '', 201
 
 @api.route('/reset_tables')
@@ -56,7 +61,7 @@ class CreateStats(Resource):
     @api.doc('Calculate players statistics')
     @api.response(201, description='Success')
     def post(self):
-        STATS.create_stats()
+        STATS.create_raw_stats()
         return '', 201
 
 @api.route('/player_stats')

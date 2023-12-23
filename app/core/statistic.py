@@ -3,7 +3,117 @@ import re
 from pathlib import Path
 import psycopg2
 
-class Statistic:
+def increment_change_count(func):
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        self._change_count += 1
+        if self.chunk_size % self._change_count == 0:
+            self.connection.commit()
+        return result
+    return wrapper
+
+class BaseStatistic:
+    """Base class"""
+    def __init__(self, db_params: dict, chunk_size: int) -> None:
+        self.scr_path = Path(__file__).parent.joinpath('scripts')
+        self.connection = psycopg2.connect(**db_params)
+        self.cursor = self.connection.cursor()
+        self.chunk_size = chunk_size
+        self._change_count = 0
+        self._sql_scrips = {
+            'ins_player_hand': self.scr_path.joinpath('ins_player_hand.txt').read_text(encoding='utf-8'),
+            'ins_player_start_hand': self.scr_path.joinpath('ins_player_start_hand.txt').read_text(encoding='utf-8'),
+            'ins_hand_steps': self.scr_path.joinpath('ins_hand_steps.txt').read_text(encoding='utf-8'),
+            'sel_players': self.scr_path.joinpath('sel_players.txt').read_text(encoding='utf-8'),
+            'ins_players': self.scr_path.joinpath('ins_players.txt').read_text(encoding='utf-8'),
+            'ins_hands': self.scr_path.joinpath('ins_hands.txt').read_text(encoding='utf-8'),
+            'drop_tables': self.scr_path.joinpath('drop_tables.sql').read_text(encoding='utf-8'),
+            'raw_stats': self.scr_path.joinpath('raw_stats.sql').read_text(encoding='utf-8'),
+            'create_tables': self.scr_path.joinpath('create_tables.sql').read_text(encoding='utf-8'),
+            'sel_player_stats': self.scr_path.joinpath('sel_player_stats.txt').read_text(encoding='utf-8'),
+            'upd_raw_stats': self.scr_path.joinpath('upd_raw_stats.txt').read_text(encoding='utf-8'),
+        }
+
+    @increment_change_count
+    def _ins_player_hand(self, player_id: int, hand_id: int, position_id: int, chips: int):
+        self.cursor.execute(
+            self._sql_scrips['ins_player_hand'],
+            (player_id, hand_id, position_id, chips)
+            )
+
+    @increment_change_count
+    def _ins_player_start_hand(self, player_id: int, hand_id: int, cards: list):
+        self.cursor.execute(
+            self._sql_scrips['ins_player_start_hand'],
+            (player_id, hand_id, cards)
+            )
+
+    @increment_change_count
+    def _ins_hand_steps(self,
+                        player_id: int,
+                        hand_id: int,
+                        step: int,
+                        stage_id: int,
+                        action_id: int,
+                        chips: int):
+        self.cursor.execute(
+            self._sql_scrips['ins_hand_steps'],
+            (player_id, hand_id, step, stage_id, action_id, chips)
+            )
+
+    def _sel_players(self, pl_name: str) -> list | None:
+        self.cursor.execute(self._sql_scrips['sel_players'], (pl_name,))
+        return self.cursor.fetchone()
+
+    @increment_change_count
+    def _ins_players(self, pl_name: str) -> int:
+        self.cursor.execute(self._sql_scrips['ins_players'], (pl_name,))
+        return self.cursor.fetchone()[0]
+
+    @increment_change_count
+    def _ins_hands(self, hand_id: int, table_name: str, sb: int, bb: int):
+        self.cursor.execute(
+            self._sql_scrips['ins_hands'],
+            (hand_id, table_name, sb, bb)
+            )
+
+    def _sel_player_stats(self, player_id: int) -> list | None:
+        self.cursor.execute(self._sql_scrips['sel_player_stats'], (player_id,))
+        result = self.cursor.fetchone()
+        if result:
+            return dict(zip([desc[0] for desc in self.cursor.description], result))
+        return {}
+
+    def commit(self):
+        """Commit chanches to database"""
+        self.connection.commit()
+        self._change_count = 0
+
+    def create_raw_stats(self):
+        """create player stats"""
+        self.cursor.execute(self._sql_scrips['raw_stats'])
+        self.commit()
+
+    @increment_change_count
+    def _upd_raw_stats(self, hand_id: int):
+        self.cursor.execute(self._sql_scrips['ins_hands'], (hand_id,))
+
+    def drop_tables(self):
+        """drop all tables"""
+        self.cursor.execute(self._sql_scrips['drop_tables'])
+        self.commit()
+
+    def create_tables(self):
+        """create tables"""
+        self.cursor.execute(self._sql_scrips['create_tables'])
+        self.commit()
+
+    def close(self):
+        """Close the database connection."""
+        self.commit()
+        self.connection.close()
+
+class Statistic(BaseStatistic):
     """
     A class for parsing and storing poker game statistics in a PostgreSQL database.
 
@@ -18,7 +128,7 @@ class Statistic:
         stages (dict): A dictionary mapping poker game stages to their corresponding IDs in the database.
         players (dict): A dictionary to cache player IDs for efficient database queries.
     """
-    def __init__(self, db_params: dict) -> None:
+    def __init__(self, db_params: dict, chunk_size: int=5000) -> None:
         """
         Initialize a Statistic object.
 
@@ -26,22 +136,21 @@ class Statistic:
             db_params (dict): A dictionary containing database connection parameters.
             table_name (str): The name of the poker table.
         """
-        self.scripts_paths = Path(__file__).parent.joinpath('sql')
-        self.connection = psycopg2.connect(**db_params)
-        self.cursor = self.connection.cursor()
+        super().__init__(db_params, chunk_size)
         self.create_tables()
+        self.positions = self.get_table_dict('POSITIONS')
+        self.actions = self.get_table_dict('ACTIONS')
+        self.card_ranks = self.get_table_dict('CARD_RANKS')
+        self.card_suits = self.get_table_dict('CARD_SUITS')
+        self.stages = self.get_table_dict('STAGES')
         self.reset()
 
     def reset(self):
         """
             reset dictionaries
         """
-        self.positions = self.get_table_dict('POSITIONS')
-        self.actions = self.get_table_dict('ACTIONS')
-        self.card_ranks = self.get_table_dict('CARD_RANKS')
-        self.card_suits = self.get_table_dict('CARD_SUITS')
-        self.stages = self.get_table_dict('STAGES')
         self.players = {}
+        self.change_count = 0
 
     def get_table_dict(self, table_name: str) -> dict:
         """
@@ -92,22 +201,16 @@ class Statistic:
             4: {1: 'SB', 2: 'BB', 3: 'CO', 0: 'BTN'},
             3: {1: 'SB', 2: 'BB', 0: 'BTN'},
             }
-        data = []
         for i, seat in enumerate(range(bnt_seat, bnt_seat + num_players)):
             current_index = seat % num_players
             _, player, chips = players[current_index]
-            data.append({
+            data = {
                 'player_id': self.get_player_id(player),
                 'position_id': self.positions[positions[num_players][i]],
                 'chips': int(float(chips) * 100),
                 'hand_id': hand_id
-                })
-
-        for row in data:
-            self.cursor.execute(
-                "INSERT INTO player_hand (player_id, hand_id, position_id, chips) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                (row['player_id'], row['hand_id'], row['position_id'], row['chips'])
-            )
+                }
+            self._ins_player_hand(**data)
 
     def parse_player_start_hand(self, preflop_part: str, hand_id: int):
         """
@@ -119,22 +222,17 @@ class Statistic:
         """
         card_pattern = re.compile(r"Dealt to (\w+): \[([2-9TJQKAcdhs]{2}), ([2-9TJQKAcdhs]{2})\]")
 
-        data = []
         for match in card_pattern.finditer(preflop_part):
             player_name = match.group(1)
             card1 = match.group(2)
             card2 = match.group(3)
-            data.append({
+            data = {
                 'player_id': self.get_player_id(player_name),
                 'hand_id': hand_id,
                 'cards': [[self.card_ranks[card1[0]], self.card_suits[card1[1]]],
                           [self.card_ranks[card2[0]], self.card_suits[card2[1]]]]
-            })
-        for row in data:
-            self.cursor.execute(
-                "INSERT INTO player_start_hand (player_id, hand_id, cards) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
-                (row['player_id'], row['hand_id'], row['cards'])
-            )
+            }
+            self._ins_player_start_hand(**data)
 
     def parse_actions(self, text, stage_id: int, hand_id: int):
         """
@@ -153,7 +251,6 @@ class Statistic:
             r'(\n|^)Uncalled bet \(\$(?P<amount>[\d.]+)\) (?P<action>\w+) to (?P<player>\w+)',
             r'(\n|^)(?P<player>\w+) (?P<action>\w+) \$(?P<amount>[\d.]+)')
 
-        data = []
         step = 0
         for pattern in patterns:
             action_pattern = re.compile(pattern)
@@ -164,23 +261,16 @@ class Statistic:
                 if chips and action_type not in ['returned', 'collected']:
                     chips = -chips
 
-                data.append({
+                data = {
                     'player_id': self.get_player_id(player),
                     'action_id': self.actions[action_type],
                     'hand_id': hand_id,
                     'step': step,
                     'stage_id': stage_id,
                     'chips': chips,
-                })
+                }
                 step += 1
-
-        for row in data:
-            self.cursor.execute(
-                "INSERT INTO hand_steps (player_id, hand_id, step, stage_id, action_id, chips) VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                (row['player_id'], row['hand_id'], row['step'], row['stage_id'], row['action_id'], row['chips'])
-            )
-
-        return data
+                self._ins_hand_steps(**data)
 
     def get_player_id(self, pl_name: str) -> int:
         """
@@ -196,13 +286,13 @@ class Statistic:
         if player_id:
             return player_id
 
-        self.cursor.execute("SELECT player_id FROM players WHERE player = %s", (pl_name,))
-        result = self.cursor.fetchone()
+        result = self._sel_players(pl_name)
+
         if result:
             player_id = result[0]
         else:
-            self.cursor.execute("INSERT INTO players (player) VALUES (%s) RETURNING player_id", (pl_name,))
-            player_id = self.cursor.fetchone()[0]
+            player_id = self._ins_players(pl_name)
+
         self.players[pl_name] = player_id
         return player_id
 
@@ -225,7 +315,7 @@ class Statistic:
 
         return stages_dict
 
-    def parse_hands(self, text: str) -> dict:
+    def parse_hands(self, text: str) -> int:
         """
         Parse and store information about the current hand.
 
@@ -235,24 +325,22 @@ class Statistic:
         Returns:
             dict: A dictionary containing parsed hand information.
         """
-        pattern_1 = r"Hand #(?P<hand_id>\d+) Hold'em No Limit \(\$(?P<sb>[\d.]+)\/\$(?P<bb>[\d.]+) USD\).*\nTable '(?P<table_name>\w+)'"
-        data = {}
-        comp = re.compile(pattern_1)
+        pattern = r"Hand #(?P<hand_id>\d+) Hold'em No Limit \(\$(?P<sb>[\d.]+)\/\$(?P<bb>[\d.]+) USD\).*\nTable '(?P<table_name>\w+)'"
+        hand_id = None
+        comp = re.compile(pattern)
         for match in comp.finditer(text):
-            data.update({
-                'hand_id': int(match.group('hand_id')),
+            hand_id = int(match.group('hand_id'))
+            data = {
+                'hand_id': hand_id,
                 'table_name': match.group('table_name'),
                 'sb':  int(float(match.group('sb')) * 100),
                 'bb': int(float(match.group('bb')) * 100),
-            })
-        self.cursor.execute(
-            "INSERT INTO hands (hand_id, table_name, sb, bb) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-            (data['hand_id'], data['table_name'], data['sb'], data['bb'])
-        )
+            }
+            self._ins_hands(**data)
 
-        return data
+        return hand_id
 
-    def parse_log(self, log: str):
+    def parse_log(self, log: str, update_stats=False):
         """
         Parse and store information from the entire game log.
 
@@ -260,58 +348,15 @@ class Statistic:
             logs (str): The entire game log text.
         """
         stages = self.split_and_create_dict(log)
-        hand_id = self.parse_hands(stages['preflop'])['hand_id']
+        hand_id = self.parse_hands(stages['preflop'])
         self.parse_player_hand(stages['preflop'], hand_id)
         self.parse_player_start_hand(stages['preflop'], hand_id)
         for stage_name, stage_logs in stages.items():
             self.parse_actions(stage_logs, self.stages[stage_name], hand_id)
-        self.commit()
 
-
-    def commit(self):
-        """Commit chanches to database"""
-        self.connection.commit()
-
-    def create_stats(self):
-        """create player stats"""
-        drop_tables = self.scripts_paths.joinpath('stats.sql').read_text()
-        self.cursor.execute(drop_tables)
-        self.commit()
-
-
-    # def parse_log_files(self):
-    #     """parsing log files in logs_path"""
-    #     for file_path in Path(self.logs_path).glob('*.txt'):
-    #         if 'test' not in file_path.name:
-    #             logs = file_path.read_text()
-    #             logs = logs.split('PokerStars')
-    #             for log in logs[1:]:
-    #                 self.parse_log(log)
-    #             self.commit()
-    #     self.create_stats()
-
-    def drop_tables(self):
-        """drop all tables"""
-        drop_tables = self.scripts_paths.joinpath('drop_tables.sql').read_text()
-        self.cursor.execute(drop_tables)
-        self.commit()
-
-    def create_tables(self):
-        """create tables"""
-        create_tables = self.scripts_paths.joinpath('create_tables.sql').read_text()
-        self.cursor.execute(create_tables)
-        self.commit()
-
-    def close(self):
-        """Close the database connection."""
-        self.connection.close()
+        if update_stats:
+            self._upd_raw_stats(hand_id)
 
     def get_player_stats(self, pl_name: str) -> dict:
         player_id = self.get_player_id(pl_name=pl_name)
-        pl_stats = self.scripts_paths.joinpath('get_player_stats.sql').read_text()
-        pl_stats = pl_stats % (player_id)
-        self.cursor.execute(pl_stats)
-        result = self.cursor.fetchone()
-        if result:
-            return dict(zip([desc[0] for desc in self.cursor.description], result))
-        return {}
+        return self._sel_player_stats(player_id)
