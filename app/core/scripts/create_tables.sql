@@ -84,43 +84,6 @@ CREATE TABLE IF NOT EXISTS hand_stage_cards
     CONSTRAINT uq_hand_stage_cards_info UNIQUE (hand_id, stage_id)
 );
 
--- Процедуры
-
-CREATE OR REPLACE FUNCTION calculate_statistics(hand_steps_table hand_steps[])
-RETURNS TABLE (
-    hand_id INT,
-    player_id INT,
-    pip INT,
-    pfr INT,
-    flop INT,
-    turn INT,
-    river INT,
-    win_preflop INT,
-    win_flop INT,
-    win_turn INT,
-    win_river INT,
-    win_showdown INT
-) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        hand_id,
-        player_id,
-        CASE WHEN BOOL_OR(stage_id = 1 AND action_id BETWEEN 5 AND 7) THEN 1 ELSE 0 END AS pip,
-        CASE WHEN BOOL_OR(stage_id = 1 AND action_id BETWEEN 6 AND 7) THEN 1 ELSE 0 END AS pfr,
-        CASE WHEN BOOL_OR(stage_id = 2) THEN 1 ELSE 0 END AS flop,
-        CASE WHEN BOOL_OR(stage_id = 3) THEN 1 ELSE 0 END AS turn,
-        CASE WHEN BOOL_OR(stage_id = 4) THEN 1 ELSE 0 END AS river,
-        CASE WHEN BOOL_OR(stage_id = 1 AND action_id = 9) THEN 1 ELSE 0 END AS win_preflop,
-        CASE WHEN BOOL_OR(stage_id = 2 AND action_id = 9) THEN 1 ELSE 0 END AS win_flop,
-        CASE WHEN BOOL_OR(stage_id = 3 AND action_id = 9) THEN 1 ELSE 0 END AS win_turn,
-        CASE WHEN BOOL_OR(stage_id = 4 AND action_id = 9) THEN 1 ELSE 0 END AS win_river,
-        CASE WHEN BOOL_OR(stage_id = 5 AND action_id = 9) THEN 1 ELSE 0 END AS win_showdown
-    FROM unnest(hand_steps_table) AS hand_steps
-    GROUP BY 1, 2;
-END;
-$$ LANGUAGE plpgsql;
-
 -- Заполнение словарей
 
 INSERT INTO card_ranks (rank_id, rank) VALUES

@@ -61,7 +61,7 @@ class CreateStats(Resource):
     @api.doc('Calculate players statistics')
     @api.response(201, description='Success')
     def post(self):
-        STATS.create_raw_stats()
+        STATS.create_player_raw_stats()
         return '', 201
 
 @api.route('/player_stats')

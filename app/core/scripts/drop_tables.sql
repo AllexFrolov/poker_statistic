@@ -1,5 +1,3 @@
-DROP FUNCTION IF EXISTS calculate_statistics;
-
 DO $$ 
 DECLARE
     tn text;

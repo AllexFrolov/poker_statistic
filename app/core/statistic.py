@@ -28,10 +28,10 @@ class BaseStatistic:
             'ins_players': self.scr_path.joinpath('ins_players.txt').read_text(encoding='utf-8'),
             'ins_hands': self.scr_path.joinpath('ins_hands.txt').read_text(encoding='utf-8'),
             'drop_tables': self.scr_path.joinpath('drop_tables.sql').read_text(encoding='utf-8'),
-            'raw_stats': self.scr_path.joinpath('raw_stats.sql').read_text(encoding='utf-8'),
+            'player_raw_stats': self.scr_path.joinpath('player_raw_stats.sql').read_text(encoding='utf-8'),
             'create_tables': self.scr_path.joinpath('create_tables.sql').read_text(encoding='utf-8'),
             'sel_player_stats': self.scr_path.joinpath('sel_player_stats.txt').read_text(encoding='utf-8'),
-            'upd_raw_stats': self.scr_path.joinpath('upd_raw_stats.txt').read_text(encoding='utf-8'),
+            'upd_player_raw_stats': self.scr_path.joinpath('upd_player_raw_stats.txt').read_text(encoding='utf-8'),
         }
 
     @increment_change_count
@@ -89,14 +89,14 @@ class BaseStatistic:
         self.connection.commit()
         self._change_count = 0
 
-    def create_raw_stats(self):
+    def create_player_raw_stats(self):
         """create player stats"""
-        self.cursor.execute(self._sql_scrips['raw_stats'])
+        self.cursor.execute(self._sql_scrips['player_raw_stats'])
         self.commit()
 
     @increment_change_count
-    def _upd_raw_stats(self, hand_id: int):
-        self.cursor.execute(self._sql_scrips['ins_hands'], (hand_id,))
+    def _upd_player_raw_stats(self, hand_id: int):
+        self.cursor.execute(self._sql_scrips['upd_player_raw_stats'], (hand_id,))
 
     def drop_tables(self):
         """drop all tables"""
@@ -355,7 +355,7 @@ class Statistic(BaseStatistic):
             self.parse_actions(stage_logs, self.stages[stage_name], hand_id)
 
         if update_stats:
-            self._upd_raw_stats(hand_id)
+            self._upd_player_raw_stats(hand_id)
 
     def get_player_stats(self, pl_name: str) -> dict:
         player_id = self.get_player_id(pl_name=pl_name)
