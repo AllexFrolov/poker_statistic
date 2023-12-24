@@ -1,3 +1,22 @@
-SELECT *
-FROM player_stats
-WHERE player_id = %s
+WITH grouped_player_stages AS (
+    SELECT 
+        player_id
+        , COUNT(*)          AS hands
+        , SUM(pip)          AS pip
+        , SUM(pfr)          AS pfr
+        , SUM(flop)         AS sees_flop
+        , SUM(turn)         AS sees_turn
+        , SUM(river)        AS sees_river
+        , SUM(win_preflop)  AS wins_preflop
+        , SUM(win_flop)     AS wins_flop
+        , SUM(win_turn)     AS wins_turn
+        , SUM(win_river)    AS wins_river
+        , SUM(win_showdown) AS wins_showdown
+    FROM player_raw_stats
+    WHERE player_id = %s
+    GROUP BY 1
+)
+SELECT ps.*
+    , wins_preflop + wins_flop + wins_turn + wins_river + wins_showdown AS wins
+FROM grouped_player_stages ps
+;
