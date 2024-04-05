@@ -17,7 +17,7 @@ sl_ext = api.model(
 
 ps_ext = api.model(
     f'/{ROUTE}/player_stats/expect', 
-    {'palyer_name': fields.String(required=True, description='Player Name'),})
+    {'player_name': fields.String(required=True, description='Player Name'),})
 
 ps_resp = api.model(
     f'/{ROUTE}/player_stats/response', {
