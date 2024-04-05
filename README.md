@@ -1,6 +1,11 @@
-# poker_statistic
-start
-```bash
-sh up.sh
-```
+# Poker statistic
+
+build
+
+    rebuild.sh
+
+up
+
+    sh up.sh
+
 swagger http://localhost:8001/
