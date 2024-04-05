@@ -1,11 +1,7 @@
 # Poker statistic
+1. Create **.env** from **.env_example**
+2. build
+```rebuild.sh```
 
-build
-
-    rebuild.sh
-
-up
-
-    sh up.sh
-
-swagger http://localhost:8001/
+3. up ```up.sh```
+4. If you run localy swagger http://localhost:8001/
