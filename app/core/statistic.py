@@ -20,18 +20,19 @@ class BaseStatistic:
         self.cursor = self.connection.cursor()
         self.chunk_size = chunk_size
         self._change_count = 0
+        reader = lambda x: self.scr_path.joinpath(x).read_text(encoding='utf-8')
         self._sql_scrips = {
-            'ins_player_hand': self.scr_path.joinpath('ins_player_hand.txt').read_text(encoding='utf-8'),
-            'ins_player_start_hand': self.scr_path.joinpath('ins_player_start_hand.txt').read_text(encoding='utf-8'),
-            'ins_hand_steps': self.scr_path.joinpath('ins_hand_steps.txt').read_text(encoding='utf-8'),
-            'sel_players': self.scr_path.joinpath('sel_players.txt').read_text(encoding='utf-8'),
-            'ins_players': self.scr_path.joinpath('ins_players.txt').read_text(encoding='utf-8'),
-            'ins_hands': self.scr_path.joinpath('ins_hands.txt').read_text(encoding='utf-8'),
-            'drop_tables': self.scr_path.joinpath('drop_tables.sql').read_text(encoding='utf-8'),
-            'player_raw_stats': self.scr_path.joinpath('player_raw_stats.sql').read_text(encoding='utf-8'),
-            'create_tables': self.scr_path.joinpath('create_tables.sql').read_text(encoding='utf-8'),
-            'sel_player_stats': self.scr_path.joinpath('sel_player_stats.txt').read_text(encoding='utf-8'),
-            'upd_player_raw_stats': self.scr_path.joinpath('upd_player_raw_stats.txt').read_text(encoding='utf-8'),
+            'ins_player_hand': reader('ins_player_hand.txt'),
+            'ins_player_start_hand': reader('ins_player_start_hand.txt'),
+            'ins_hand_steps': reader('ins_hand_steps.txt'),
+            'sel_players': reader('sel_players.txt'),
+            'ins_players': reader('ins_players.txt'),
+            'ins_hands': reader('ins_hands.txt'),
+            'drop_tables': reader('drop_tables.sql'),
+            'player_raw_stats': reader('player_raw_stats.sql'),
+            'create_tables': reader('create_tables.sql'),
+            'sel_player_stats': reader('sel_player_stats.txt'),
+            'upd_player_raw_stats': reader('upd_player_raw_stats.txt'),
         }
 
     @increment_change_count
