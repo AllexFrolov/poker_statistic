@@ -5,8 +5,9 @@ from .parser import api as pl
 
 
 api = Api(
-    title='Иди нахуй',
-    description='Иди нахуй API',
+    title='Poker API',
+    version='1.0',
+    description='',
     )
 
 api.add_namespace(hc)
